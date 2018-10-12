@@ -2,10 +2,8 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import * as nls from 'vs/nls';
-import { onUnexpectedError } from 'vs/base/common/errors';
 import { assign, deepClone } from 'vs/base/common/objects';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IWindowsService } from 'vs/platform/windows/common/windows';
@@ -36,8 +34,9 @@ configurationRegistry.registerConfiguration({
 	'properties': {
 		'telemetry.enableCrashReporter': {
 			'type': 'boolean',
-			'description': nls.localize('telemetry.enableCrashReporting', "Enable crash reports to be sent to Microsoft.\nThis option requires restart to take effect."),
-			'default': true
+			'description': nls.localize('telemetry.enableCrashReporting', "Enable crash reports to be sent to a Microsoft online service. \nThis option requires restart to take effect."),
+			'default': true,
+			'tags': ['usesOnlineServices']
 		}
 	}
 });
@@ -54,7 +53,7 @@ export const NullCrashReporterService: ICrashReporterService = {
 
 export class CrashReporterService implements ICrashReporterService {
 
-	public _serviceBrand: any;
+	_serviceBrand: any;
 
 	private options: Electron.CrashReporterStartOptions;
 	private isEnabled: boolean;
@@ -97,8 +96,7 @@ export class CrashReporterService implements ICrashReporterService {
 
 				// start crash reporter in the main process
 				return this.windowsService.startCrashReporter(this.options);
-			})
-			.done(null, onUnexpectedError);
+			});
 	}
 
 	private getSubmitURL(): string {
@@ -114,7 +112,7 @@ export class CrashReporterService implements ICrashReporterService {
 		return submitURL;
 	}
 
-	public getChildProcessStartOptions(name: string): Electron.CrashReporterStartOptions {
+	getChildProcessStartOptions(name: string): Electron.CrashReporterStartOptions {
 
 		// Experimental crash reporting support for child processes on Mac only for now
 		if (this.isEnabled && isMacintosh) {

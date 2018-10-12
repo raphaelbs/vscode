@@ -3,8 +3,6 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-'use strict';
-
 import { Position, IPosition } from 'vs/editor/common/core/position';
 
 /**
@@ -174,14 +172,14 @@ export class Range {
 	/**
 	 * A intersection of the two ranges.
 	 */
-	public intersectRanges(range: IRange): Range {
+	public intersectRanges(range: IRange): Range | null {
 		return Range.intersectRanges(this, range);
 	}
 
 	/**
 	 * A intersection of the two ranges.
 	 */
-	public static intersectRanges(a: IRange, b: IRange): Range {
+	public static intersectRanges(a: IRange, b: IRange): Range | null {
 		let resultStartLineNumber = a.startLineNumber;
 		let resultStartColumn = a.startColumn;
 		let resultEndLineNumber = a.endLineNumber;
@@ -218,14 +216,14 @@ export class Range {
 	/**
 	 * Test if this range equals other.
 	 */
-	public equalsRange(other: IRange): boolean {
+	public equalsRange(other: IRange | null): boolean {
 		return Range.equalsRange(this, other);
 	}
 
 	/**
 	 * Test if range `a` equals `b`.
 	 */
-	public static equalsRange(a: IRange, b: IRange): boolean {
+	public static equalsRange(a: IRange | null, b: IRange | null): boolean {
 		return (
 			!!a &&
 			!!b &&
@@ -294,7 +292,9 @@ export class Range {
 	/**
 	 * Create a `Range` from an `IRange`.
 	 */
-	public static lift(range: IRange): Range {
+	public static lift(range: undefined | null): null;
+	public static lift(range: IRange): Range;
+	public static lift(range: IRange | undefined | null): Range | null {
 		if (!range) {
 			return null;
 		}
@@ -325,6 +325,24 @@ export class Range {
 
 		// Check if `b` is before `a`
 		if (b.endLineNumber < a.startLineNumber || (b.endLineNumber === a.startLineNumber && b.endColumn < a.startColumn)) {
+			return false;
+		}
+
+		// These ranges must intersect
+		return true;
+	}
+
+	/**
+	 * Test if the two ranges are intersecting. If the ranges are touching it returns true.
+	 */
+	public static areIntersecting(a: IRange, b: IRange): boolean {
+		// Check if `a` is before `b`
+		if (a.endLineNumber < b.startLineNumber || (a.endLineNumber === b.startLineNumber && a.endColumn <= b.startColumn)) {
+			return false;
+		}
+
+		// Check if `b` is before `a`
+		if (b.endLineNumber < a.startLineNumber || (b.endLineNumber === a.startLineNumber && b.endColumn <= a.startColumn)) {
 			return false;
 		}
 

@@ -2,10 +2,9 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
-import { HoverOperation, IHoverComputer } from './hoverOperation';
+import { HoverOperation, IHoverComputer, HoverStartMode } from './hoverOperation';
 import { GlyphHoverWidget } from './hoverWidgets';
 import { $ } from 'vs/base/browser/dom';
 import { MarkdownRenderer } from 'vs/editor/contrib/markdown/markdownRenderer';
@@ -123,7 +122,7 @@ export class ModesGlyphHoverWidget extends GlyphHoverWidget {
 			// we need to recompute the displayed text
 			this._hoverOperation.cancel();
 			this._computer.clearResult();
-			this._hoverOperation.start();
+			this._hoverOperation.start(HoverStartMode.Delayed);
 		}
 	}
 
@@ -139,7 +138,7 @@ export class ModesGlyphHoverWidget extends GlyphHoverWidget {
 
 		this._lastLineNumber = lineNumber;
 		this._computer.setLineNumber(lineNumber);
-		this._hoverOperation.start();
+		this._hoverOperation.start(HoverStartMode.Delayed);
 	}
 
 	public hide(): void {

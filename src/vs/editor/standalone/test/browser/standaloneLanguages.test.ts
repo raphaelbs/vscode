@@ -2,8 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
-
 import * as assert from 'assert';
 import { TokenizationSupport2Adapter, TokensProvider, ILineTokens, IToken } from 'vs/editor/standalone/browser/standaloneLanguages';
 import { IStandaloneThemeService, IStandaloneThemeData, IStandaloneTheme } from 'vs/editor/standalone/common/standaloneThemeService';
@@ -34,7 +32,7 @@ suite('TokenizationSupport2Adapter', () => {
 	}
 
 	class MockThemeService implements IStandaloneThemeService {
-		_serviceBrand = null;
+		_serviceBrand = <any>null;
 		public setTheme(themeName: string): string {
 			throw new Error('Not implemented');
 		}
@@ -58,7 +56,7 @@ suite('TokenizationSupport2Adapter', () => {
 				}
 			};
 		}
-		public readonly onThemeChange: Event<ITheme> = null;
+		public readonly onThemeChange: Event<ITheme> | null = null;
 	}
 
 	class MockState implements IState {

@@ -2,8 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
-
 import * as assert from 'assert';
 import { EditOperation } from 'vs/editor/common/core/editOperation';
 import { Position } from 'vs/editor/common/core/position';
@@ -22,18 +20,18 @@ import { dispose, Disposable } from 'vs/base/common/lifecycle';
 
 // --------- utils
 
-var LINE1 = 'My First Line';
-var LINE2 = '\t\tMy Second Line';
-var LINE3 = '    Third Line';
-var LINE4 = '';
-var LINE5 = '1';
+const LINE1 = 'My First Line';
+const LINE2 = '\t\tMy Second Line';
+const LINE3 = '    Third Line';
+const LINE4 = '';
+const LINE5 = '1';
 
 suite('Editor Model - Model', () => {
 
-	var thisModel: TextModel;
+	let thisModel: TextModel;
 
 	setup(() => {
-		var text =
+		const text =
 			LINE1 + '\r\n' +
 			LINE2 + '\n' +
 			LINE3 + '\n' +
@@ -106,7 +104,7 @@ suite('Editor Model - Model', () => {
 	});
 
 	test('model insert text without newline eventing', () => {
-		let e: ModelRawContentChangedEvent = null;
+		let e: ModelRawContentChangedEvent | null = null;
 		thisModel.onDidChangeRawContent((_e) => {
 			if (e !== null) {
 				assert.fail('Unexpected assertion error');
@@ -125,7 +123,7 @@ suite('Editor Model - Model', () => {
 	});
 
 	test('model insert text with one newline eventing', () => {
-		let e: ModelRawContentChangedEvent = null;
+		let e: ModelRawContentChangedEvent | null = null;
 		thisModel.onDidChangeRawContent((_e) => {
 			if (e !== null) {
 				assert.fail('Unexpected assertion error');
@@ -202,7 +200,7 @@ suite('Editor Model - Model', () => {
 	});
 
 	test('model delete text from one line eventing', () => {
-		let e: ModelRawContentChangedEvent = null;
+		let e: ModelRawContentChangedEvent | null = null;
 		thisModel.onDidChangeRawContent((_e) => {
 			if (e !== null) {
 				assert.fail('Unexpected assertion error');
@@ -221,7 +219,7 @@ suite('Editor Model - Model', () => {
 	});
 
 	test('model delete all text from a line eventing', () => {
-		let e: ModelRawContentChangedEvent = null;
+		let e: ModelRawContentChangedEvent | null = null;
 		thisModel.onDidChangeRawContent((_e) => {
 			if (e !== null) {
 				assert.fail('Unexpected assertion error');
@@ -240,7 +238,7 @@ suite('Editor Model - Model', () => {
 	});
 
 	test('model delete text from two lines eventing', () => {
-		let e: ModelRawContentChangedEvent = null;
+		let e: ModelRawContentChangedEvent | null = null;
 		thisModel.onDidChangeRawContent((_e) => {
 			if (e !== null) {
 				assert.fail('Unexpected assertion error');
@@ -260,7 +258,7 @@ suite('Editor Model - Model', () => {
 	});
 
 	test('model delete text from many lines eventing', () => {
-		let e: ModelRawContentChangedEvent = null;
+		let e: ModelRawContentChangedEvent | null = null;
 		thisModel.onDidChangeRawContent((_e) => {
 			if (e !== null) {
 				assert.fail('Unexpected assertion error');
@@ -311,7 +309,7 @@ suite('Editor Model - Model', () => {
 
 	// --------- setValue
 	test('setValue eventing', () => {
-		let e: ModelRawContentChangedEvent = null;
+		let e: ModelRawContentChangedEvent | null = null;
 		thisModel.onDidChangeRawContent((_e) => {
 			if (e !== null) {
 				assert.fail('Unexpected assertion error');
@@ -344,10 +342,10 @@ suite('Editor Model - Model', () => {
 // --------- Special Unicode LINE SEPARATOR character
 suite('Editor Model - Model Line Separators', () => {
 
-	var thisModel: TextModel;
+	let thisModel: TextModel;
 
 	setup(() => {
-		var text =
+		const text =
 			LINE1 + '\u2028' +
 			LINE2 + '\n' +
 			LINE3 + '\u2028' +
@@ -369,7 +367,7 @@ suite('Editor Model - Model Line Separators', () => {
 	});
 
 	test('Bug 13333:Model should line break on lonely CR too', () => {
-		var model = TextModel.createFromString('Hello\rWorld!\r\nAnother line');
+		let model = TextModel.createFromString('Hello\rWorld!\r\nAnother line');
 		assert.equal(model.getLineCount(), 3);
 		assert.equal(model.getValue(), 'Hello\r\nWorld!\r\nAnother line');
 		model.dispose();
@@ -394,7 +392,7 @@ suite('Editor Model - Words', () => {
 				tokenize: undefined,
 				tokenize2: (line: string, state: IState): TokenizationResult2 => {
 					const tokensArr: number[] = [];
-					let prevLanguageId: LanguageIdentifier = undefined;
+					let prevLanguageId: LanguageIdentifier | undefined = undefined;
 					for (let i = 0; i < line.length; i++) {
 						const languageId = (line.charAt(i) === 'x' ? INNER_LANGUAGE_ID : OUTER_LANGUAGE_ID);
 						if (prevLanguageId !== languageId) {

@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { Position } from 'vs/editor/common/core/position';
 import { Range as EditorRange } from 'vs/editor/common/core/range';
@@ -16,6 +15,7 @@ import { PartFingerprint, PartFingerprints } from 'vs/editor/browser/view/viewPa
 import { IViewModel } from 'vs/editor/common/viewModel/viewModel';
 import { EditorLayoutInfo } from 'vs/editor/common/config/editorOptions';
 import { ViewLine } from 'vs/editor/browser/viewParts/lines/viewLine';
+import { HorizontalRange } from 'vs/editor/common/view/renderingContext';
 
 export interface IViewZoneData {
 	viewZoneId: number;
@@ -27,6 +27,7 @@ export interface IViewZoneData {
 
 export interface IMarginData {
 	isAfterLines: boolean;
+	glyphMarginLeft: number;
 	glyphMarginWidth: number;
 	lineNumbersWidth: number;
 	offsetX: number;
@@ -34,6 +35,7 @@ export interface IMarginData {
 
 export interface IEmptyContentData {
 	isAfterLines: boolean;
+	horizontalDistanceToText?: number;
 }
 
 interface IETextRange {
@@ -95,7 +97,7 @@ export class MouseTarget implements IMouseTarget {
 	public readonly range: EditorRange;
 	public readonly detail: any;
 
-	constructor(element: Element, type: MouseTargetType, mouseColumn: number = 0, position: Position = null, range: EditorRange = null, detail: any = null) {
+	constructor(element: Element, type: MouseTargetType, mouseColumn: number = 0, position: Position | null = null, range: EditorRange | null = null, detail: any = null) {
 		this.element = element;
 		this.type = type;
 		this.mouseColumn = mouseColumn;
@@ -222,7 +224,7 @@ class ElementPath {
 	}
 }
 
-class HitTestContext {
+export class HitTestContext {
 
 	public readonly model: IViewModel;
 	public readonly layoutInfo: EditorLayoutInfo;
@@ -246,15 +248,19 @@ class HitTestContext {
 	}
 
 	public getZoneAtCoord(mouseVerticalOffset: number): IViewZoneData {
+		return HitTestContext.getZoneAtCoord(this._context, mouseVerticalOffset);
+	}
+
+	public static getZoneAtCoord(context: ViewContext, mouseVerticalOffset: number): IViewZoneData {
 		// The target is either a view zone or the empty space after the last view-line
-		let viewZoneWhitespace = this._context.viewLayout.getWhitespaceAtVerticalOffset(mouseVerticalOffset);
+		let viewZoneWhitespace = context.viewLayout.getWhitespaceAtVerticalOffset(mouseVerticalOffset);
 
 		if (viewZoneWhitespace) {
 			let viewZoneMiddle = viewZoneWhitespace.verticalOffset + viewZoneWhitespace.height / 2,
-				lineCount = this._context.model.getLineCount(),
-				positionBefore: Position = null,
+				lineCount = context.model.getLineCount(),
+				positionBefore: Position | null = null,
 				position: Position,
-				positionAfter: Position = null;
+				positionAfter: Position | null = null;
 
 			if (viewZoneWhitespace.afterLineNumber !== lineCount) {
 				// There are more lines after this view zone
@@ -262,7 +268,7 @@ class HitTestContext {
 			}
 			if (viewZoneWhitespace.afterLineNumber > 0) {
 				// There are more lines above this view zone
-				positionBefore = new Position(viewZoneWhitespace.afterLineNumber, this._context.model.getLineMaxColumn(viewZoneWhitespace.afterLineNumber));
+				positionBefore = new Position(viewZoneWhitespace.afterLineNumber, context.model.getLineMaxColumn(viewZoneWhitespace.afterLineNumber));
 			}
 
 			if (positionAfter === null) {
@@ -338,7 +344,7 @@ class HitTestContext {
 		return this._viewHelper.getLineWidth(lineNumber);
 	}
 
-	public visibleRangeForPosition2(lineNumber: number, column: number) {
+	public visibleRangeForPosition2(lineNumber: number, column: number): HorizontalRange {
 		return this._viewHelper.visibleRangeForPosition2(lineNumber, column);
 	}
 
@@ -400,7 +406,7 @@ class HitTestRequest extends BareHitTestRequest {
 		return `pos(${this.pos.x},${this.pos.y}), editorPos(${this.editorPos.x},${this.editorPos.y}), mouseVerticalOffset: ${this.mouseVerticalOffset}, mouseContentHorizontalOffset: ${this.mouseContentHorizontalOffset}\n\ttarget: ${this.target ? (<HTMLElement>this.target).outerHTML : null}`;
 	}
 
-	public fulfill(type: MouseTargetType, position: Position = null, range: EditorRange = null, detail: any = null): MouseTarget {
+	public fulfill(type: MouseTargetType, position: Position | null = null, range: EditorRange | null = null, detail: any = null): MouseTarget {
 		return new MouseTarget(this.target, type, this.mouseColumn, position, range, detail);
 	}
 
@@ -410,7 +416,13 @@ class HitTestRequest extends BareHitTestRequest {
 }
 
 const EMPTY_CONTENT_AFTER_LINES: IEmptyContentData = { isAfterLines: true };
-const EMPTY_CONTENT_IN_LINES: IEmptyContentData = { isAfterLines: false };
+
+function createEmptyContentDataInLines(horizontalDistanceToText: number): IEmptyContentData {
+	return {
+		isAfterLines: false,
+		horizontalDistanceToText: horizontalDistanceToText
+	};
+}
 
 export class MouseTargetFactory {
 
@@ -472,7 +484,7 @@ export class MouseTargetFactory {
 			return this._createMouseTarget(ctx, request.withTarget(hitTestResult.hitTarget), true);
 		}
 
-		let result: MouseTarget = null;
+		let result: MouseTarget | null = null;
 
 		result = result || MouseTargetFactory._hitTestContentWidget(ctx, request);
 		result = result || MouseTargetFactory._hitTestOverlayWidget(ctx, request);
@@ -590,6 +602,7 @@ export class MouseTargetFactory {
 			let offset = Math.abs(request.pos.x - request.editorPos.x);
 			const detail: IMarginData = {
 				isAfterLines: res.isAfterLines,
+				glyphMarginLeft: ctx.layoutInfo.glyphMarginLeft,
 				glyphMarginWidth: ctx.layoutInfo.glyphMarginWidth,
 				lineNumbersWidth: ctx.layoutInfo.lineNumbersWidth,
 				offsetX: offset
@@ -634,7 +647,9 @@ export class MouseTargetFactory {
 			if (ElementPath.isStrictChildOfViewLines(request.targetPath)) {
 				const lineNumber = ctx.getLineNumberAtVerticalOffset(request.mouseVerticalOffset);
 				if (ctx.model.getLineLength(lineNumber) === 0) {
-					return request.fulfill(MouseTargetType.CONTENT_EMPTY, new Position(lineNumber, 1), void 0, EMPTY_CONTENT_IN_LINES);
+					const lineWidth = ctx.getLineWidth(lineNumber);
+					const detail = createEmptyContentDataInLines(request.mouseContentHorizontalOffset - lineWidth);
+					return request.fulfill(MouseTargetType.CONTENT_EMPTY, new Position(lineNumber, 1), void 0, detail);
 				}
 			}
 
@@ -708,9 +723,11 @@ export class MouseTargetFactory {
 		if (request.mouseContentHorizontalOffset > lineWidth) {
 			if (browser.isEdge && pos.column === 1) {
 				// See https://github.com/Microsoft/vscode/issues/10875
-				return request.fulfill(MouseTargetType.CONTENT_EMPTY, new Position(lineNumber, ctx.model.getLineMaxColumn(lineNumber)), void 0, EMPTY_CONTENT_IN_LINES);
+				const detail = createEmptyContentDataInLines(request.mouseContentHorizontalOffset - lineWidth);
+				return request.fulfill(MouseTargetType.CONTENT_EMPTY, new Position(lineNumber, ctx.model.getLineMaxColumn(lineNumber)), void 0, detail);
 			}
-			return request.fulfill(MouseTargetType.CONTENT_EMPTY, pos, void 0, EMPTY_CONTENT_IN_LINES);
+			const detail = createEmptyContentDataInLines(request.mouseContentHorizontalOffset - lineWidth);
+			return request.fulfill(MouseTargetType.CONTENT_EMPTY, pos, void 0, detail);
 		}
 
 		const visibleRange = ctx.visibleRangeForPosition2(lineNumber, column);
@@ -878,8 +895,8 @@ export class MouseTargetFactory {
 	 * Most probably IE
 	 */
 	private static _doHitTestWithMoveToPoint(ctx: HitTestContext, coords: ClientCoordinates): IHitTestResult {
-		let resultPosition: Position = null;
-		let resultHitTarget: Element = null;
+		let resultPosition: Position | null = null;
+		let resultHitTarget: Element | null = null;
 
 		let textRange: IETextRange = (<any>document.body).createTextRange();
 		try {

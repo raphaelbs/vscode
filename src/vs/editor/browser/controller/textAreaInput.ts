@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { RunOnceScheduler } from 'vs/base/common/async';
 import { Position } from 'vs/editor/common/core/position';
@@ -126,7 +125,8 @@ export class TextAreaInput extends Disposable {
 		this._nextCommand = ReadFromTextArea.Type;
 
 		this._register(dom.addStandardDisposableListener(textArea.domNode, 'keydown', (e: IKeyboardEvent) => {
-			if (this._isDoingComposition && e.keyCode === KeyCode.KEY_IN_COMPOSITION) {
+			if (this._isDoingComposition &&
+				(e.keyCode === KeyCode.KEY_IN_COMPOSITION || e.keyCode === KeyCode.Backspace)) {
 				// Stop propagation for keyDown events if the IME is processing key input
 				e.stopPropagation();
 			}
@@ -204,15 +204,6 @@ export class TextAreaInput extends Disposable {
 		this._register(dom.addDisposableListener(textArea.domNode, 'compositionupdate', (e: CompositionEvent) => {
 			this._lastTextAreaEvent = TextAreaInputEventType.compositionupdate;
 
-			if (browser.isChromev56) {
-				// See https://github.com/Microsoft/monaco-editor/issues/320
-				// where compositionupdate .data is broken in Chrome v55 and v56
-				// See https://bugs.chromium.org/p/chromium/issues/detail?id=677050#c9
-				// The textArea doesn't get the composition update yet, the value of textarea is still obsolete
-				// so we can't correct e at this moment.
-				return;
-			}
-
 			if (compositionDataInValid(e.locale)) {
 				const [newState, typeInput] = deduceInputFromTextAreaValue(/*couldBeEmojiInput*/false, /*couldBeTypingAtOffset0*/false);
 				this._textAreaState = newState;
@@ -265,17 +256,6 @@ export class TextAreaInput extends Disposable {
 			this._textArea.setIgnoreSelectionChangeTime('received input event');
 
 			if (this._isDoingComposition) {
-				// See https://github.com/Microsoft/monaco-editor/issues/320
-				if (browser.isChromev56) {
-					const [newState, typeInput] = deduceComposition(this._textArea.getValue());
-					this._textAreaState = newState;
-
-					this._onType.fire(typeInput);
-					let e: ICompositionData = {
-						data: typeInput.text
-					};
-					this._onCompositionUpdate.fire(e);
-				}
 				return;
 			}
 
@@ -286,7 +266,6 @@ export class TextAreaInput extends Disposable {
 			}
 
 			this._textAreaState = newState;
-			// console.log('==> DEDUCED INPUT: ' + JSON.stringify(typeInput));
 			if (this._nextCommand === ReadFromTextArea.Type) {
 				if (typeInput.text !== '') {
 					this._onType.fire(typeInput);
@@ -421,10 +400,10 @@ export class TextAreaInput extends Disposable {
 			}
 
 			const _newSelectionStartPosition = this._textAreaState.deduceEditorPosition(newSelectionStart);
-			const newSelectionStartPosition = this._host.deduceModelPosition(_newSelectionStartPosition[0], _newSelectionStartPosition[1], _newSelectionStartPosition[2]);
+			const newSelectionStartPosition = this._host.deduceModelPosition(_newSelectionStartPosition[0]!, _newSelectionStartPosition[1], _newSelectionStartPosition[2]);
 
 			const _newSelectionEndPosition = this._textAreaState.deduceEditorPosition(newSelectionEnd);
-			const newSelectionEndPosition = this._host.deduceModelPosition(_newSelectionEndPosition[0], _newSelectionEndPosition[1], _newSelectionEndPosition[2]);
+			const newSelectionEndPosition = this._host.deduceModelPosition(_newSelectionEndPosition[0]!, _newSelectionEndPosition[1], _newSelectionEndPosition[2]);
 
 			const newSelection = new Selection(
 				newSelectionStartPosition.lineNumber, newSelectionStartPosition.column,
@@ -500,8 +479,8 @@ export class TextAreaInput extends Disposable {
 			return;
 		}
 
-		let copyHTML: string = null;
-		if (!browser.isEdgeOrIE && (copyPlainText.length < 65536 || CopyOptions.forceCopyWithSyntaxHighlighting)) {
+		let copyHTML: string | null = null;
+		if (browser.hasClipboardSupport() && (copyPlainText.length < 65536 || CopyOptions.forceCopyWithSyntaxHighlighting)) {
 			copyHTML = this._host.getHTMLToCopy();
 		}
 		ClipboardEventUtils.setTextData(e, copyPlainText, copyHTML);
@@ -534,7 +513,7 @@ class ClipboardEventUtils {
 		throw new Error('ClipboardEventUtils.getTextData: Cannot use text data!');
 	}
 
-	public static setTextData(e: ClipboardEvent, text: string, richText: string): void {
+	public static setTextData(e: ClipboardEvent, text: string, richText: string | null): void {
 		if (e.clipboardData) {
 			e.clipboardData.setData('text/plain', text);
 			if (richText !== null) {

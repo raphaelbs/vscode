@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { InlineDecoration, InlineDecorationType } from 'vs/editor/common/viewModel/viewModel';
 import { Constants } from 'vs/editor/common/core/uint';
@@ -58,7 +57,7 @@ export class LineDecoration {
 				continue;
 			}
 
-			if (range.isEmpty() && d.type === InlineDecorationType.Regular) {
+			if (range.isEmpty() && (d.type === InlineDecorationType.Regular || d.type === InlineDecorationType.RegularAffectingLetterSpacing)) {
 				// Ignore empty range decorations
 				continue;
 			}

@@ -2,8 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
-
 import * as assert from 'assert';
 import { IDisposable } from 'vs/base/common/lifecycle';
 import { EditOperation } from 'vs/editor/common/core/editOperation';
@@ -34,8 +32,8 @@ suite('Editor Model - Model Modes 1', () => {
 		}
 	};
 
-	let thisModel: TextModel = null;
-	let languageRegistration: IDisposable = null;
+	let thisModel: TextModel | null = null;
+	let languageRegistration: IDisposable | null = null;
 
 	setup(() => {
 		const TEXT =
@@ -197,15 +195,15 @@ suite('Editor Model - Model Modes 2', () => {
 	}
 
 	function statesEqual(model: TextModel, states: string[]): void {
-		var i, len = states.length - 1;
+		let i, len = states.length - 1;
 		for (i = 0; i < len; i++) {
 			stateEqual(model._tokens._getState(i), states[i]);
 		}
 		stateEqual((<any>model)._tokens._lastState, states[len]);
 	}
 
-	let thisModel: TextModel = null;
-	let languageRegistration: IDisposable = null;
+	let thisModel: TextModel | null = null;
+	let languageRegistration: IDisposable | null = null;
 
 	setup(() => {
 		const TEXT =

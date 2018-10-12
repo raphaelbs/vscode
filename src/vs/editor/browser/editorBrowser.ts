@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { IDisposable } from 'vs/base/common/lifecycle';
 import { IKeyboardEvent } from 'vs/base/browser/keyboardEvent';
@@ -53,6 +52,11 @@ export interface IViewZone {
 	 * If neither `heightInPx` nor `heightInLines` is specified, a default of `heightInLines` = 1 will be chosen.
 	 */
 	heightInPx?: number;
+	/**
+	 * The minimum width in px of the view zone.
+	 * If this is set, the editor will ensure that the scroll width is >= than this value.
+	 */
+	minWidthInPx?: number;
 	/**
 	 * The dom node of the view zone
 	 */
@@ -118,6 +122,11 @@ export interface IContentWidgetPosition {
 	 * `preference` will also affect the placement.
 	 */
 	position: IPosition;
+	/**
+	 * Optionally, a range can be provided to further
+	 * define the position of the content widget.
+	 */
+	range?: IRange;
 	/**
 	 * Placement preference for position, in order of preference.
 	 */
@@ -360,12 +369,12 @@ export interface ICodeEditor extends editorCommon.IEditor {
 	 */
 	onDidChangeModelDecorations(listener: (e: IModelDecorationsChangedEvent) => void): IDisposable;
 	/**
-	 * An event emitted when the text inside this editor gained focus (i.e. cursor blinking).
+	 * An event emitted when the text inside this editor gained focus (i.e. cursor starts blinking).
 	 * @event
 	 */
 	onDidFocusEditorText(listener: () => void): IDisposable;
 	/**
-	 * An event emitted when the text inside this editor lost focus.
+	 * An event emitted when the text inside this editor lost focus (i.e. cursor stops blinking).
 	 * @event
 	 */
 	onDidBlurEditorText(listener: () => void): IDisposable;
@@ -373,12 +382,12 @@ export interface ICodeEditor extends editorCommon.IEditor {
 	 * An event emitted when the text inside this editor or an editor widget gained focus.
 	 * @event
 	 */
-	onDidFocusEditor(listener: () => void): IDisposable;
+	onDidFocusEditorWidget(listener: () => void): IDisposable;
 	/**
 	 * An event emitted when the text inside this editor or an editor widget lost focus.
 	 * @event
 	 */
-	onDidBlurEditor(listener: () => void): IDisposable;
+	onDidBlurEditorWidget(listener: () => void): IDisposable;
 	/**
 	 * An event emitted before interpreting typed characters (on the keyboard).
 	 * @event
@@ -391,6 +400,20 @@ export interface ICodeEditor extends editorCommon.IEditor {
 	 * @internal
 	 */
 	onDidType(listener: (text: string) => void): IDisposable;
+	/**
+	 * An event emitted after composition has started.
+	 */
+	onCompositionStart(listener: () => void): IDisposable;
+	/**
+	 * An event emitted after composition has ended.
+	 */
+	onCompositionEnd(listener: () => void): IDisposable;
+	/**
+	 * An event emitted when editing failed because the editor is read-only.
+	 * @event
+	 * @internal
+	 */
+	onDidAttemptReadOnlyEdit(listener: () => void): IDisposable;
 	/**
 	 * An event emitted when users paste text in the editor.
 	 * @event
@@ -466,7 +489,7 @@ export interface ICodeEditor extends editorCommon.IEditor {
 	restoreViewState(state: editorCommon.ICodeEditorViewState): void;
 
 	/**
-	 * Returns true if this editor or one of its widgets has keyboard focus.
+	 * Returns true if the text inside this editor or an editor widget has focus.
 	 */
 	hasWidgetFocus(): boolean;
 
@@ -567,9 +590,9 @@ export interface ICodeEditor extends editorCommon.IEditor {
 	 * The edits will land on the undo-redo stack, but no "undo stop" will be pushed.
 	 * @param source The source of the call.
 	 * @param edits The edits to execute.
-	 * @param endCursoState Cursor state after the edits were applied.
+	 * @param endCursorState Cursor state after the edits were applied.
 	 */
-	executeEdits(source: string, edits: IIdentifiedSingleEditOperation[], endCursoState?: Selection[]): boolean;
+	executeEdits(source: string, edits: IIdentifiedSingleEditOperation[], endCursorState?: Selection[]): boolean;
 
 	/**
 	 * Execute multiple (concommitent) commands on the editor.
@@ -618,11 +641,6 @@ export interface ICodeEditor extends editorCommon.IEditor {
 	 * Get the layout info for the editor.
 	 */
 	getLayoutInfo(): editorOptions.EditorLayoutInfo;
-
-	/**
-	 * Returns the range that is currently centered in the view port.
-	 */
-	getCenteredRangeInViewport(): Range;
 
 	/**
 	 * Returns the ranges that are currently visible.
@@ -832,4 +850,19 @@ export function isDiffEditor(thing: any): thing is IDiffEditor {
 	} else {
 		return false;
 	}
+}
+
+/**
+ *@internal
+ */
+export function getCodeEditor(thing: any): ICodeEditor | null {
+	if (isCodeEditor(thing)) {
+		return thing;
+	}
+
+	if (isDiffEditor(thing)) {
+		return thing.getModifiedEditor();
+	}
+
+	return null;
 }

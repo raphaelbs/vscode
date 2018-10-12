@@ -3,8 +3,6 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-'use strict';
-
 import * as nls from 'vs/nls';
 import { language } from 'vs/base/common/platform';
 import { IWorkbenchContributionsRegistry, IWorkbenchContribution, Extensions as WorkbenchExtensions } from 'vs/workbench/common/contributions';
@@ -84,7 +82,8 @@ class NPSContribution implements IWorkbenchContribution {
 					storageService.store(IS_CANDIDATE_KEY, false, StorageScope.GLOBAL);
 					storageService.store(SKIP_VERSION_KEY, pkg.version, StorageScope.GLOBAL);
 				}
-			}]
+			}],
+			{ sticky: true }
 		);
 	}
 }

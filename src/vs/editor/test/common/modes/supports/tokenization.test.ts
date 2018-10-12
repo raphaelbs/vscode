@@ -2,8 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
-
 import * as assert from 'assert';
 import { strcmp, parseTokenTheme, TokenTheme, ParsedTokenThemeRule, ColorMap, ExternalThemeTrieElement, ThemeTrieElementRule } from 'vs/editor/common/modes/supports/tokenization';
 import { FontStyle } from 'vs/editor/common/modes';
@@ -15,7 +13,7 @@ suite('Token theme matching', () => {
 			{ token: '', foreground: '100000', background: '200000' },
 			{ token: 'punctuation.definition.string.begin.html', foreground: '300000' },
 			{ token: 'punctuation.definition.string', foreground: '400000' },
-		]);
+		], []);
 
 		let colorMap = new ColorMap();
 		colorMap.getId('100000');
@@ -42,7 +40,7 @@ suite('Token theme matching', () => {
 			{ token: 'constant.numeric.oct', fontStyle: 'bold italic underline' },
 			{ token: 'constant.numeric.dec', fontStyle: '', foreground: '500000' },
 			{ token: 'storage.object.bar', fontStyle: '', foreground: '600000' },
-		]);
+		], []);
 
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('F8F8F2');
@@ -167,7 +165,7 @@ suite('Token theme resolving', () => {
 	});
 
 	test('always has defaults', () => {
-		let actual = TokenTheme.createFromParsedTokenTheme([]);
+		let actual = TokenTheme.createFromParsedTokenTheme([], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('000000');
 		const _B = colorMap.getId('ffffff');
@@ -178,7 +176,7 @@ suite('Token theme resolving', () => {
 	test('respects incoming defaults 1', () => {
 		let actual = TokenTheme.createFromParsedTokenTheme([
 			new ParsedTokenThemeRule('', -1, FontStyle.NotSet, null, null)
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('000000');
 		const _B = colorMap.getId('ffffff');
@@ -189,7 +187,7 @@ suite('Token theme resolving', () => {
 	test('respects incoming defaults 2', () => {
 		let actual = TokenTheme.createFromParsedTokenTheme([
 			new ParsedTokenThemeRule('', -1, FontStyle.None, null, null)
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('000000');
 		const _B = colorMap.getId('ffffff');
@@ -200,7 +198,7 @@ suite('Token theme resolving', () => {
 	test('respects incoming defaults 3', () => {
 		let actual = TokenTheme.createFromParsedTokenTheme([
 			new ParsedTokenThemeRule('', -1, FontStyle.Bold, null, null)
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('000000');
 		const _B = colorMap.getId('ffffff');
@@ -211,7 +209,7 @@ suite('Token theme resolving', () => {
 	test('respects incoming defaults 4', () => {
 		let actual = TokenTheme.createFromParsedTokenTheme([
 			new ParsedTokenThemeRule('', -1, FontStyle.NotSet, 'ff0000', null)
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('ff0000');
 		const _B = colorMap.getId('ffffff');
@@ -222,7 +220,7 @@ suite('Token theme resolving', () => {
 	test('respects incoming defaults 5', () => {
 		let actual = TokenTheme.createFromParsedTokenTheme([
 			new ParsedTokenThemeRule('', -1, FontStyle.NotSet, null, 'ff0000')
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('000000');
 		const _B = colorMap.getId('ff0000');
@@ -235,7 +233,7 @@ suite('Token theme resolving', () => {
 			new ParsedTokenThemeRule('', -1, FontStyle.NotSet, null, 'ff0000'),
 			new ParsedTokenThemeRule('', -1, FontStyle.NotSet, '00ff00', null),
 			new ParsedTokenThemeRule('', -1, FontStyle.Bold, null, null),
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('00ff00');
 		const _B = colorMap.getId('ff0000');
@@ -247,7 +245,7 @@ suite('Token theme resolving', () => {
 		let actual = TokenTheme.createFromParsedTokenTheme([
 			new ParsedTokenThemeRule('', -1, FontStyle.NotSet, 'F8F8F2', '272822'),
 			new ParsedTokenThemeRule('var', -1, FontStyle.NotSet, 'ff0000', null)
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('F8F8F2');
 		const _B = colorMap.getId('272822');
@@ -264,7 +262,7 @@ suite('Token theme resolving', () => {
 			new ParsedTokenThemeRule('', -1, FontStyle.NotSet, 'F8F8F2', '272822'),
 			new ParsedTokenThemeRule('var', 1, FontStyle.Bold, null, null),
 			new ParsedTokenThemeRule('var', 0, FontStyle.NotSet, 'ff0000', null),
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('F8F8F2');
 		const _B = colorMap.getId('272822');
@@ -281,7 +279,7 @@ suite('Token theme resolving', () => {
 			new ParsedTokenThemeRule('', -1, FontStyle.NotSet, 'F8F8F2', '272822'),
 			new ParsedTokenThemeRule('var', -1, FontStyle.Bold, 'ff0000', null),
 			new ParsedTokenThemeRule('var.identifier', -1, FontStyle.NotSet, '00ff00', null),
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('F8F8F2');
 		const _B = colorMap.getId('272822');
@@ -306,7 +304,7 @@ suite('Token theme resolving', () => {
 			new ParsedTokenThemeRule('constant.numeric.hex', 6, FontStyle.Bold, null, null),
 			new ParsedTokenThemeRule('constant.numeric.oct', 7, FontStyle.Bold | FontStyle.Italic | FontStyle.Underline, null, null),
 			new ParsedTokenThemeRule('constant.numeric.dec', 8, FontStyle.None, '300000', null),
-		]);
+		], []);
 		let colorMap = new ColorMap();
 		const _A = colorMap.getId('F8F8F2');
 		const _B = colorMap.getId('272822');
@@ -329,5 +327,19 @@ suite('Token theme resolving', () => {
 			})
 		});
 		assert.deepEqual(actual.getThemeTrieElement(), root);
+	});
+
+	test('custom colors are first in color map', () => {
+		let actual = TokenTheme.createFromParsedTokenTheme([
+			new ParsedTokenThemeRule('var', -1, FontStyle.NotSet, 'F8F8F2', null)
+		], [
+				'000000', 'FFFFFF', '0F0F0F'
+			]);
+		let colorMap = new ColorMap();
+		colorMap.getId('000000');
+		colorMap.getId('FFFFFF');
+		colorMap.getId('0F0F0F');
+		colorMap.getId('F8F8F2');
+		assert.deepEqual(actual.getColorMap(), colorMap.getColorMap());
 	});
 });

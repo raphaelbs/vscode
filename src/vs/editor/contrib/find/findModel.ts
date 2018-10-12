@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { RunOnceScheduler, TimeoutTimer } from 'vs/base/common/async';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
@@ -46,12 +45,6 @@ export const ToggleSearchScopeKeybinding: IKeybindings = {
 	primary: KeyMod.Alt | KeyCode.KEY_L,
 	mac: { primary: KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.KEY_L }
 };
-export const ShowPreviousFindTermKeybinding: IKeybindings = {
-	primary: KeyMod.Alt | KeyCode.UpArrow
-};
-export const ShowNextFindTermKeybinding: IKeybindings = {
-	primary: KeyMod.Alt | KeyCode.DownArrow
-};
 
 export const FIND_IDS = {
 	StartFindAction: 'actions.find',
@@ -68,9 +61,7 @@ export const FIND_IDS = {
 	ToggleSearchScopeCommand: 'toggleFindInSelection',
 	ReplaceOneAction: 'editor.action.replaceOne',
 	ReplaceAllAction: 'editor.action.replaceAll',
-	SelectAllMatchesAction: 'editor.action.selectAllMatches',
-	ShowPreviousFindTermAction: 'find.history.showPrevious',
-	ShowNextFindTermAction: 'find.history.showNext'
+	SelectAllMatchesAction: 'editor.action.selectAllMatches'
 };
 
 export const MATCHES_LIMIT = 19999;
@@ -147,7 +138,7 @@ export class FindModelBoundToEditorModel {
 		if (e.searchString || e.isReplaceRevealed || e.isRegex || e.wholeWord || e.matchCase || e.searchScope) {
 			let model = this._editor.getModel();
 
-			if (model.isTooLargeForHavingARichMode()) {
+			if (model.isTooLargeForSyncing()) {
 				this._startSearchingTimer.cancel();
 
 				this._startSearchingTimer.setIfNotSet(() => {
@@ -179,7 +170,7 @@ export class FindModelBoundToEditorModel {
 	}
 
 	private research(moveCursor: boolean, newFindScope?: Range): void {
-		let findScope: Range = null;
+		let findScope: Range | null = null;
 		if (typeof newFindScope !== 'undefined') {
 			findScope = newFindScope;
 		} else {
@@ -187,8 +178,12 @@ export class FindModelBoundToEditorModel {
 		}
 		if (findScope !== null) {
 			if (findScope.startLineNumber !== findScope.endLineNumber) {
-				// multiline find scope => expand to line starts / ends
-				findScope = new Range(findScope.startLineNumber, 1, findScope.endLineNumber, this._editor.getModel().getLineMaxColumn(findScope.endLineNumber));
+				if (findScope.endColumn === 1) {
+					findScope = new Range(findScope.startLineNumber, 1, findScope.endLineNumber - 1, this._editor.getModel().getLineMaxColumn(findScope.endLineNumber - 1));
+				} else {
+					// multiline find scope => expand to line starts / ends
+					findScope = new Range(findScope.startLineNumber, 1, findScope.endLineNumber, this._editor.getModel().getLineMaxColumn(findScope.endLineNumber));
+				}
 			}
 		}
 

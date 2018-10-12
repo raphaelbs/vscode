@@ -2,16 +2,14 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import * as nls from 'vs/nls';
 import * as network from 'vs/base/common/network';
 import { Event, Emitter } from 'vs/base/common/event';
 import { MarkdownString } from 'vs/base/common/htmlContent';
-import { IDisposable, dispose } from 'vs/base/common/lifecycle';
-import URI from 'vs/base/common/uri';
-import { TPromise } from 'vs/base/common/winjs.base';
-import { IMarker, IMarkerService, MarkerSeverity } from 'vs/platform/markers/common/markers';
+import { IDisposable, dispose, Disposable } from 'vs/base/common/lifecycle';
+import { URI } from 'vs/base/common/uri';
+import { IMarker, IMarkerService, MarkerSeverity, MarkerTag } from 'vs/platform/markers/common/markers';
 import { Range } from 'vs/editor/common/core/range';
 import { TextModel, createTextBuffer } from 'vs/editor/common/model/textModel';
 import { IMode, LanguageIdentifier } from 'vs/editor/common/modes';
@@ -28,6 +26,7 @@ import { overviewRulerWarning, overviewRulerError, overviewRulerInfo } from 'vs/
 import { ITextModel, IModelDeltaDecoration, IModelDecorationOptions, TrackedRangeStickiness, OverviewRulerLane, DefaultEndOfLine, ITextModelCreationOptions, EndOfLineSequence, IIdentifiedSingleEditOperation, ITextBufferFactory, ITextBuffer, EndOfLinePreference } from 'vs/editor/common/model';
 import { isFalsyOrEmpty } from 'vs/base/common/arrays';
 import { basename } from 'vs/base/common/paths';
+import { isThenable } from 'vs/base/common/async';
 
 function MODEL_ID(resource: URI): string {
 	return resource.toString();
@@ -56,7 +55,6 @@ class ModelData implements IDisposable {
 	public dispose(): void {
 		this._markerDecorations = this.model.deltaDecorations(this._markerDecorations, []);
 		this._modelEventListeners = dispose(this._modelEventListeners);
-		this.model = null;
 	}
 
 	public acceptMarkerDecorations(newDecorations: IModelDeltaDecoration[]): void {
@@ -73,8 +71,8 @@ class ModelMarkerHandler {
 
 		let newModelDecorations: IModelDeltaDecoration[] = markers.map((marker) => {
 			return {
-				range: this._createDecorationRange(modelData.model, marker),
-				options: this._createDecorationOption(marker)
+				range: ModelMarkerHandler._createDecorationRange(modelData.model, marker),
+				options: ModelMarkerHandler._createDecorationOption(marker)
 			};
 		});
 
@@ -85,9 +83,12 @@ class ModelMarkerHandler {
 
 		let ret = Range.lift(rawMarker);
 
-		if (rawMarker.severity === MarkerSeverity.Hint && Range.spansMultipleLines(ret)) {
-			// never render hints on multiple lines
-			ret = ret.setEndPosition(ret.startLineNumber, ret.startColumn);
+		if (rawMarker.severity === MarkerSeverity.Hint) {
+			if (!rawMarker.tags || rawMarker.tags.indexOf(MarkerTag.Unnecessary) === -1) {
+				// * never render hints on multiple lines
+				// * make enough space for three dots
+				ret = ret.setEndPosition(ret.startLineNumber, ret.startColumn + 2);
+			}
 		}
 
 		ret = model.validateRange(ret);
@@ -124,37 +125,44 @@ class ModelMarkerHandler {
 	private static _createDecorationOption(marker: IMarker): IModelDecorationOptions {
 
 		let className: string;
-		let color: ThemeColor;
-		let darkColor: ThemeColor;
+		let color: ThemeColor | undefined = undefined;
 		let zIndex: number;
+		let inlineClassName: string | undefined = undefined;
 
 		switch (marker.severity) {
 			case MarkerSeverity.Hint:
-				className = ClassName.EditorHintDecoration;
+				if (marker.tags && marker.tags.indexOf(MarkerTag.Unnecessary) >= 0) {
+					className = ClassName.EditorUnnecessaryDecoration;
+				} else {
+					className = ClassName.EditorHintDecoration;
+				}
 				zIndex = 0;
 				break;
 			case MarkerSeverity.Warning:
 				className = ClassName.EditorWarningDecoration;
 				color = themeColorFromId(overviewRulerWarning);
-				darkColor = themeColorFromId(overviewRulerWarning);
 				zIndex = 20;
 				break;
 			case MarkerSeverity.Info:
 				className = ClassName.EditorInfoDecoration;
 				color = themeColorFromId(overviewRulerInfo);
-				darkColor = themeColorFromId(overviewRulerInfo);
 				zIndex = 10;
 				break;
 			case MarkerSeverity.Error:
 			default:
 				className = ClassName.EditorErrorDecoration;
 				color = themeColorFromId(overviewRulerError);
-				darkColor = themeColorFromId(overviewRulerError);
 				zIndex = 30;
 				break;
 		}
 
-		let hoverMessage: MarkdownString = null;
+		if (marker.tags) {
+			if (marker.tags.indexOf(MarkerTag.Unnecessary) !== -1) {
+				inlineClassName = ClassName.EditorUnnecessaryInlineDecoration;
+			}
+		}
+
+		let hoverMessage: MarkdownString | null = null;
 		let { message, source, relatedInformation } = marker;
 
 		if (typeof message === 'string') {
@@ -172,10 +180,12 @@ class ModelMarkerHandler {
 
 			if (!isFalsyOrEmpty(relatedInformation)) {
 				hoverMessage.appendMarkdown('\n');
-				for (const { message, resource, startLineNumber, startColumn } of relatedInformation) {
+				for (const { message, resource, startLineNumber, startColumn } of relatedInformation!) {
 					hoverMessage.appendMarkdown(
-						`* [${basename(resource.path)}(${startLineNumber}, ${startColumn})](${resource.toString(false)}#${startLineNumber},${startColumn}): \`${message}\` \n`
+						`* [${basename(resource.path)}(${startLineNumber}, ${startColumn})](${resource.toString(false)}#${startLineNumber},${startColumn}): `
 					);
+					hoverMessage.appendText(`${message}`);
+					hoverMessage.appendMarkdown('\n');
 				}
 				hoverMessage.appendMarkdown('\n');
 			}
@@ -188,10 +198,10 @@ class ModelMarkerHandler {
 			showIfCollapsed: true,
 			overviewRuler: {
 				color,
-				darkColor,
 				position: OverviewRulerLane.Right
 			},
-			zIndex
+			zIndex,
+			inlineClassName,
 		};
 	}
 }
@@ -205,14 +215,14 @@ interface IRawConfig {
 		insertSpaces?: any;
 		detectIndentation?: any;
 		trimAutoWhitespace?: any;
-		largeFileSize?: any;
-		largeFileLineCount?: any;
+		creationOptions?: any;
+		largeFileOptimizations?: any;
 	};
 }
 
 const DEFAULT_EOL = (platform.isLinux || platform.isMacintosh) ? DefaultEndOfLine.LF : DefaultEndOfLine.CRLF;
 
-export class ModelServiceImpl implements IModelService {
+export class ModelServiceImpl extends Disposable implements IModelService {
 	public _serviceBrand: any;
 
 	private _markerService: IMarkerService;
@@ -220,9 +230,14 @@ export class ModelServiceImpl implements IModelService {
 	private _configurationService: IConfigurationService;
 	private _configurationServiceSubscription: IDisposable;
 
-	private readonly _onModelAdded: Emitter<ITextModel>;
-	private readonly _onModelRemoved: Emitter<ITextModel>;
-	private readonly _onModelModeChanged: Emitter<{ model: ITextModel; oldModeId: string; }>;
+	private readonly _onModelAdded: Emitter<ITextModel> = this._register(new Emitter<ITextModel>());
+	public readonly onModelAdded: Event<ITextModel> = this._onModelAdded.event;
+
+	private readonly _onModelRemoved: Emitter<ITextModel> = this._register(new Emitter<ITextModel>());
+	public readonly onModelRemoved: Event<ITextModel> = this._onModelRemoved.event;
+
+	private readonly _onModelModeChanged: Emitter<{ model: ITextModel; oldModeId: string; }> = this._register(new Emitter<{ model: ITextModel; oldModeId: string; }>());
+	public readonly onModelModeChanged: Event<{ model: ITextModel; oldModeId: string; }> = this._onModelModeChanged.event;
 
 	private _modelCreationOptionsByLanguageAndResource: {
 		[languageAndResource: string]: ITextModelCreationOptions;
@@ -237,13 +252,11 @@ export class ModelServiceImpl implements IModelService {
 		@IMarkerService markerService: IMarkerService,
 		@IConfigurationService configurationService: IConfigurationService,
 	) {
+		super();
 		this._markerService = markerService;
 		this._configurationService = configurationService;
 		this._models = {};
 		this._modelCreationOptionsByLanguageAndResource = Object.create(null);
-		this._onModelAdded = new Emitter<ITextModel>();
-		this._onModelRemoved = new Emitter<ITextModel>();
-		this._onModelModeChanged = new Emitter<{ model: ITextModel; oldModeId: string; }>();
 
 		if (this._markerService) {
 			this._markerServiceSubscription = this._markerService.onMarkerChanged(this._handleMarkerChange, this);
@@ -259,6 +272,9 @@ export class ModelServiceImpl implements IModelService {
 			let parsedTabSize = parseInt(config.editor.tabSize, 10);
 			if (!isNaN(parsedTabSize)) {
 				tabSize = parsedTabSize;
+			}
+			if (tabSize < 1) {
+				tabSize = 1;
 			}
 		}
 
@@ -285,20 +301,9 @@ export class ModelServiceImpl implements IModelService {
 			detectIndentation = (config.editor.detectIndentation === 'false' ? false : Boolean(config.editor.detectIndentation));
 		}
 
-		let largeFileSize = EDITOR_MODEL_DEFAULTS.largeFileSize;
-		if (config.editor && typeof config.editor.largeFileSize !== 'undefined') {
-			let parsedlargeFileSize = parseInt(config.editor.largeFileSize, 10);
-			if (!isNaN(parsedlargeFileSize)) {
-				largeFileSize = parsedlargeFileSize;
-			}
-		}
-
-		let largeFileLineCount = EDITOR_MODEL_DEFAULTS.largeFileLineCount;
-		if (config.editor && typeof config.editor.largeFileLineCount !== 'undefined') {
-			let parsedlargeFileLineCount = parseInt(config.editor.largeFileLineCount, 10);
-			if (!isNaN(parsedlargeFileLineCount)) {
-				largeFileLineCount = parsedlargeFileLineCount;
-			}
+		let largeFileOptimizations = EDITOR_MODEL_DEFAULTS.largeFileOptimizations;
+		if (config.editor && typeof config.editor.largeFileOptimizations !== 'undefined') {
+			largeFileOptimizations = (config.editor.largeFileOptimizations === 'false' ? false : Boolean(config.editor.largeFileOptimizations));
 		}
 
 		return {
@@ -308,8 +313,7 @@ export class ModelServiceImpl implements IModelService {
 			detectIndentation: detectIndentation,
 			defaultEOL: newDefaultEOL,
 			trimAutoWhitespace: trimAutoWhitespace,
-			largeFileSize: largeFileSize,
-			largeFileLineCount: largeFileLineCount
+			largeFileOptimizations: largeFileOptimizations
 		};
 	}
 
@@ -369,6 +373,7 @@ export class ModelServiceImpl implements IModelService {
 			this._markerServiceSubscription.dispose();
 		}
 		this._configurationServiceSubscription.dispose();
+		super.dispose();
 	}
 
 	private _handleMarkerChange(changedResources: URI[]): void {
@@ -429,12 +434,14 @@ export class ModelServiceImpl implements IModelService {
 		}
 
 		// Otherwise find a diff between the values and update model
-		model.setEOL(textBuffer.getEOL() === '\r\n' ? EndOfLineSequence.CRLF : EndOfLineSequence.LF);
+		model.pushStackElement();
+		model.pushEOL(textBuffer.getEOL() === '\r\n' ? EndOfLineSequence.CRLF : EndOfLineSequence.LF);
 		model.pushEditOperations(
 			[],
 			ModelServiceImpl._computeEdits(model, textBuffer),
 			(inverseEditOperations: IIdentifiedSingleEditOperation[]) => []
 		);
+		model.pushStackElement();
 	}
 
 	private static _commonPrefix(a: ILineSequence, aLen: number, aDelta: number, b: ILineSequence, bLen: number, bDelta: number): number {
@@ -487,10 +494,10 @@ export class ModelServiceImpl implements IModelService {
 		return [EditOperation.replaceMove(oldRange, textBuffer.getValueInRange(newRange, EndOfLinePreference.TextDefined))];
 	}
 
-	public createModel(value: string | ITextBufferFactory, modeOrPromise: TPromise<IMode> | IMode, resource: URI, isForSimpleWidget: boolean = false): ITextModel {
+	public createModel(value: string | ITextBufferFactory, modeOrPromise: Promise<IMode> | IMode, resource: URI, isForSimpleWidget: boolean = false): ITextModel {
 		let modelData: ModelData;
 
-		if (!modeOrPromise || TPromise.is(modeOrPromise)) {
+		if (!modeOrPromise || isThenable(modeOrPromise)) {
 			modelData = this._createModelData(value, PLAINTEXT_LANGUAGE_IDENTIFIER, resource, isForSimpleWidget);
 			this.setMode(modelData.model, modeOrPromise);
 		} else {
@@ -507,11 +514,11 @@ export class ModelServiceImpl implements IModelService {
 		return modelData.model;
 	}
 
-	public setMode(model: ITextModel, modeOrPromise: TPromise<IMode> | IMode): void {
+	public setMode(model: ITextModel, modeOrPromise: Promise<IMode> | IMode): void {
 		if (!modeOrPromise) {
 			return;
 		}
-		if (TPromise.is(modeOrPromise)) {
+		if (isThenable(modeOrPromise)) {
 			modeOrPromise.then((mode) => {
 				if (!model.isDisposed()) {
 					model.setMode(mode.getLanguageIdentifier());
@@ -543,25 +550,13 @@ export class ModelServiceImpl implements IModelService {
 		return ret;
 	}
 
-	public getModel(resource: URI): ITextModel {
+	public getModel(resource: URI): ITextModel | null {
 		let modelId = MODEL_ID(resource);
 		let modelData = this._models[modelId];
 		if (!modelData) {
 			return null;
 		}
 		return modelData.model;
-	}
-
-	public get onModelAdded(): Event<ITextModel> {
-		return this._onModelAdded ? this._onModelAdded.event : null;
-	}
-
-	public get onModelRemoved(): Event<ITextModel> {
-		return this._onModelRemoved ? this._onModelRemoved.event : null;
-	}
-
-	public get onModelModeChanged(): Event<{ model: ITextModel; oldModeId: string; }> {
-		return this._onModelModeChanged ? this._onModelModeChanged.event : null;
 	}
 
 	// --- end IModelService

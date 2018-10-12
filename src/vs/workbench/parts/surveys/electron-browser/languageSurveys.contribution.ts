@@ -3,8 +3,6 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-'use strict';
-
 import * as nls from 'vs/nls';
 import { language } from 'vs/base/common/platform';
 import { IModelService } from 'vs/editor/common/services/modelService';
@@ -114,7 +112,8 @@ class LanguageSurvey {
 					storageService.store(IS_CANDIDATE_KEY, false, StorageScope.GLOBAL);
 					storageService.store(SKIP_VERSION_KEY, pkg.version, StorageScope.GLOBAL);
 				}
-			}]
+			}],
+			{ sticky: true }
 		);
 	}
 }

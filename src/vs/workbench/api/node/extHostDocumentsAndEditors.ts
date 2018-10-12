@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { Event, Emitter } from 'vs/base/common/event';
 import { dispose } from 'vs/base/common/lifecycle';
@@ -11,7 +10,7 @@ import { ExtHostDocumentData } from './extHostDocumentData';
 import { ExtHostTextEditor } from './extHostTextEditor';
 import * as assert from 'assert';
 import * as typeConverters from './extHostTypeConverters';
-import URI from 'vs/base/common/uri';
+import { URI } from 'vs/base/common/uri';
 import { Disposable } from './extHostTypes';
 
 export class ExtHostDocumentsAndEditors implements ExtHostDocumentsAndEditorsShape {
@@ -95,10 +94,10 @@ export class ExtHostDocumentsAndEditors implements ExtHostDocumentsAndEditorsSha
 					this._mainContext.getProxy(MainContext.MainThreadTextEditors),
 					data.id,
 					documentData,
-					data.selections.map(typeConverters.toSelection),
+					data.selections.map(typeConverters.Selection.to),
 					data.options,
-					data.visibleRanges.map(typeConverters.toRange),
-					typeConverters.toViewColumn(data.editorPosition)
+					data.visibleRanges.map(typeConverters.Range.to),
+					typeConverters.ViewColumn.to(data.editorPosition)
 				);
 				this._editors.set(data.id, editor);
 			}

@@ -2,8 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
-
 import * as assert from 'assert';
 import { Position } from 'vs/editor/common/core/position';
 import { CharacterHardWrappingLineMapping, CharacterHardWrappingLineMapperFactory } from 'vs/editor/common/viewModel/characterHardWrappingLineMapper';
@@ -23,8 +21,8 @@ import { EndOfLinePreference } from 'vs/editor/common/model';
 
 suite('Editor ViewModel - SplitLinesCollection', () => {
 	test('SplitLine', () => {
-		var model1 = createModel('My First LineMy Second LineAnd another one');
-		var line1 = createSplitLine([13, 14, 15], '');
+		let model1 = createModel('My First LineMy Second LineAnd another one');
+		let line1 = createSplitLine([13, 14, 15], '');
 
 		assert.equal(line1.getViewLineCount(), 3);
 		assert.equal(line1.getViewLineContent(model1, 1, 0), 'My First Line');
@@ -229,12 +227,12 @@ suite('Editor ViewModel - SplitLinesCollection', () => {
 					if (viewLineNumber < 1) {
 						viewLineNumber = 1;
 					}
-					var lineCount = linesCollection.getViewLineCount();
+					let lineCount = linesCollection.getViewLineCount();
 					if (viewLineNumber > lineCount) {
 						viewLineNumber = lineCount;
 					}
-					var viewMinColumn = linesCollection.getViewLineMinColumn(viewLineNumber);
-					var viewMaxColumn = linesCollection.getViewLineMaxColumn(viewLineNumber);
+					let viewMinColumn = linesCollection.getViewLineMinColumn(viewLineNumber);
+					let viewMaxColumn = linesCollection.getViewLineMaxColumn(viewLineNumber);
 					if (viewColumn < viewMinColumn) {
 						viewColumn = viewMinColumn;
 					}
@@ -323,8 +321,8 @@ suite('SplitLinesCollection', () => {
 		]
 	];
 
-	let model: TextModel = null;
-	let languageRegistration: IDisposable = null;
+	let model: TextModel | null = null;
+	let languageRegistration: IDisposable | null = null;
 
 	setup(() => {
 		let _lineIndex = 0;

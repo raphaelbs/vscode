@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import 'vs/css!./inspectTMScopes';
 import * as nls from 'vs/nls';
@@ -350,7 +349,7 @@ class InspectTMScopesWidget extends Disposable implements IContentWidget {
 	}
 
 	private _getStateBeforeLine(grammar: IGrammar, lineNumber: number): StackElement {
-		let state: StackElement = null;
+		let state: StackElement | null = null;
 
 		for (let i = 1; i < lineNumber; i++) {
 			let tokenizationResult = grammar.tokenizeLine(this._model.getLineContent(i), state);
@@ -376,13 +375,13 @@ registerEditorContribution(InspectTMScopesController);
 registerEditorAction(InspectTMScopes);
 
 registerThemingParticipant((theme, collector) => {
-	let border = theme.getColor(editorHoverBorder);
+	const border = theme.getColor(editorHoverBorder);
 	if (border) {
 		let borderWidth = theme.type === HIGH_CONTRAST ? 2 : 1;
 		collector.addRule(`.monaco-editor .tm-inspect-widget { border: ${borderWidth}px solid ${border}; }`);
 		collector.addRule(`.monaco-editor .tm-inspect-widget .tm-metadata-separator { background-color: ${border}; }`);
 	}
-	let background = theme.getColor(editorHoverBackground);
+	const background = theme.getColor(editorHoverBackground);
 	if (background) {
 		collector.addRule(`.monaco-editor .tm-inspect-widget { background-color: ${background}; }`);
 	}

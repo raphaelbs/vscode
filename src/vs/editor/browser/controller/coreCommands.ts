@@ -3,12 +3,11 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-'use strict';
-
+import * as nls from 'vs/nls';
 import { Position } from 'vs/editor/common/core/position';
 import { Range } from 'vs/editor/common/core/range';
 import * as editorCommon from 'vs/editor/common/editorCommon';
-import { CursorState, ICursors, RevealTarget, IColumnSelectData, CursorContext, EditOperationType } from 'vs/editor/common/controller/cursorCommon';
+import { CursorState, ICursors, RevealTarget, IColumnSelectData, CursorContext, EditOperationType, PartialCursorState } from 'vs/editor/common/controller/cursorCommon';
 import { CursorChangeReason } from 'vs/editor/common/controller/cursorEvents';
 import { CursorMoveCommands, CursorMove as CursorMove_ } from 'vs/editor/common/controller/cursorMoveCommands';
 import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
@@ -16,19 +15,19 @@ import { registerEditorCommand, ICommandOptions, EditorCommand, Command } from '
 import { IColumnSelectResult, ColumnSelection } from 'vs/editor/common/controller/cursorColumnSelection';
 import { EditorContextKeys } from 'vs/editor/common/editorContextKeys';
 import { KeyMod, KeyCode } from 'vs/base/common/keyCodes';
-import { KeybindingsRegistry } from 'vs/platform/keybinding/common/keybindingsRegistry';
+import { KeybindingWeight } from 'vs/platform/keybinding/common/keybindingsRegistry';
 import H = editorCommon.Handler;
-import { ICodeEditorService, getCodeEditor } from 'vs/editor/browser/services/codeEditorService';
+import { ICodeEditorService } from 'vs/editor/browser/services/codeEditorService';
 import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
 import * as types from 'vs/base/common/types';
 import { ICommandHandlerDescription } from 'vs/platform/commands/common/commands';
-import { IEditorService } from 'vs/platform/editor/common/editor';
 import { TypeOperations } from 'vs/editor/common/controller/cursorTypeOperations';
 import { DeleteOperations } from 'vs/editor/common/controller/cursorDeleteOperations';
 import { VerticalRevealType } from 'vs/editor/common/view/viewEvents';
 import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
+import { MenuId } from 'vs/platform/actions/common/actions';
 
-const CORE_WEIGHT = KeybindingsRegistry.WEIGHT.editorCore();
+const CORE_WEIGHT = KeybindingWeight.EditorCore;
 
 export abstract class CoreEditorCommand extends EditorCommand {
 	public runEditorCommand(accessor: ServicesAccessor, editor: ICodeEditor, args: any): void {
@@ -704,18 +703,14 @@ export namespace CoreNavigationCommands {
 		public runCoreEditorCommand(cursors: ICursors, args: any): void {
 			const context = cursors.context;
 
-			if (context.config.readOnly) {
-				return;
-			}
-
-			let newState: CursorState;
+			let newState: PartialCursorState;
 			if (args.wholeLine) {
 				newState = CursorMoveCommands.line(context, cursors.getPrimaryCursor(), false, args.position, args.viewPosition);
 			} else {
 				newState = CursorMoveCommands.moveTo(context, cursors.getPrimaryCursor(), false, args.position, args.viewPosition);
 			}
 
-			const states = cursors.getAll();
+			const states: PartialCursorState[] = cursors.getAll();
 
 			// Check if we should remove a cursor (sort of like a toggle)
 			if (states.length > 1) {
@@ -769,14 +764,11 @@ export namespace CoreNavigationCommands {
 		public runCoreEditorCommand(cursors: ICursors, args: any): void {
 			const context = cursors.context;
 
-			if (context.config.readOnly) {
-				return;
-			}
-
 			const lastAddedCursorIndex = cursors.getLastAddedCursorIndex();
 
-			let newStates = cursors.getAll().slice(0);
-			newStates[lastAddedCursorIndex] = CursorMoveCommands.moveTo(context, newStates[lastAddedCursorIndex], true, args.position, args.viewPosition);
+			const states = cursors.getAll();
+			let newStates: PartialCursorState[] = states.slice(0);
+			newStates[lastAddedCursorIndex] = CursorMoveCommands.moveTo(context, states[lastAddedCursorIndex], true, args.position, args.viewPosition);
 
 			cursors.context.model.pushStackElement();
 			cursors.setStates(
@@ -855,8 +847,8 @@ export namespace CoreNavigationCommands {
 			cursors.reveal(true, RevealTarget.Primary, editorCommon.ScrollType.Smooth);
 		}
 
-		private _exec(context: CursorContext, cursors: CursorState[]): CursorState[] {
-			let result: CursorState[] = [];
+		private _exec(context: CursorContext, cursors: CursorState[]): PartialCursorState[] {
+			let result: PartialCursorState[] = [];
 			for (let i = 0, len = cursors.length; i < len; i++) {
 				const cursor = cursors[i];
 				const lineNumber = cursor.modelState.position.lineNumber;
@@ -934,8 +926,8 @@ export namespace CoreNavigationCommands {
 			cursors.reveal(true, RevealTarget.Primary, editorCommon.ScrollType.Smooth);
 		}
 
-		private _exec(context: CursorContext, cursors: CursorState[]): CursorState[] {
-			let result: CursorState[] = [];
+		private _exec(context: CursorContext, cursors: CursorState[]): PartialCursorState[] {
+			let result: PartialCursorState[] = [];
 			for (let i = 0, len = cursors.length; i < len; i++) {
 				const cursor = cursors[i];
 				const lineNumber = cursor.modelState.position.lineNumber;
@@ -1251,14 +1243,12 @@ export namespace CoreNavigationCommands {
 
 		public runCoreEditorCommand(cursors: ICursors, args: any): void {
 			const context = cursors.context;
-			if (context.config.readOnly) {
-				return;
-			}
 
 			const lastAddedCursorIndex = cursors.getLastAddedCursorIndex();
 
-			let newStates = cursors.getAll().slice(0);
-			let lastAddedState = newStates[lastAddedCursorIndex];
+			const states = cursors.getAll();
+			let newStates: PartialCursorState[] = states.slice(0);
+			let lastAddedState = states[lastAddedCursorIndex];
 			newStates[lastAddedCursorIndex] = CursorMoveCommands.word(context, lastAddedState, lastAddedState.modelState.hasSelection(), args.position);
 
 			context.model.pushStackElement();
@@ -1312,16 +1302,11 @@ export namespace CoreNavigationCommands {
 		}
 
 		public runCoreEditorCommand(cursors: ICursors, args: any): void {
-			const context = cursors.context;
-
-			if (context.config.readOnly) {
-				return;
-			}
-
 			const lastAddedCursorIndex = cursors.getLastAddedCursorIndex();
 
-			let newStates = cursors.getAll().slice(0);
-			newStates[lastAddedCursorIndex] = CursorMoveCommands.line(cursors.context, newStates[lastAddedCursorIndex], this._inSelectionMode, args.position, args.viewPosition);
+			const states = cursors.getAll();
+			let newStates: PartialCursorState[] = states.slice(0);
+			newStates[lastAddedCursorIndex] = CursorMoveCommands.line(cursors.context, states[lastAddedCursorIndex], this._inSelectionMode, args.position, args.viewPosition);
 
 			cursors.context.model.pushStackElement();
 			cursors.setStates(
@@ -1637,14 +1622,8 @@ function findFocusedEditor(accessor: ServicesAccessor): ICodeEditor {
 	return accessor.get(ICodeEditorService).getFocusedCodeEditor();
 }
 
-function getWorkbenchActiveEditor(accessor: ServicesAccessor): ICodeEditor {
-	const editorService = accessor.get(IEditorService);
-	let activeEditor = (<any>editorService).getActiveEditor && (<any>editorService).getActiveEditor();
-	return getCodeEditor(activeEditor);
-}
-
 function registerCommand(command: Command) {
-	KeybindingsRegistry.registerCommandAndKeybindingRule(command.toCommandAndKeybindingRule(CORE_WEIGHT));
+	command.register();
 }
 
 /**
@@ -1668,7 +1647,7 @@ class EditorOrNativeTextInputCommand extends Command {
 
 		let focusedEditor = findFocusedEditor(accessor);
 		// Only if editor text focus (i.e. not if editor has widget focus).
-		if (focusedEditor && focusedEditor.isFocused()) {
+		if (focusedEditor && focusedEditor.hasTextFocus()) {
 			return this._runEditorHandler(focusedEditor, args);
 		}
 
@@ -1679,8 +1658,8 @@ class EditorOrNativeTextInputCommand extends Command {
 			return;
 		}
 
-		// Redirecting to last active editor
-		let activeEditor = getWorkbenchActiveEditor(accessor);
+		// Redirecting to active editor
+		let activeEditor = accessor.get(ICodeEditorService).getActiveCodeEditor();
 		if (activeEditor) {
 			activeEditor.focus();
 			return this._runEditorHandler(activeEditor, args);
@@ -1728,11 +1707,17 @@ registerCommand(new EditorOrNativeTextInputCommand({
 	editorHandler: CoreNavigationCommands.SelectAll,
 	inputHandler: 'selectAll',
 	id: 'editor.action.selectAll',
-	precondition: null,
+	precondition: EditorContextKeys.textInputFocus,
 	kbOpts: {
 		weight: CORE_WEIGHT,
 		kbExpr: null,
 		primary: KeyMod.CtrlCmd | KeyCode.KEY_A
+	},
+	menubarOpts: {
+		menuId: MenuId.MenubarSelectionMenu,
+		group: '1_basic',
+		title: nls.localize({ key: 'miSelectAll', comment: ['&& denotes a mnemonic'] }, "&&Select All"),
+		order: 1
 	}
 }));
 
@@ -1745,6 +1730,12 @@ registerCommand(new EditorOrNativeTextInputCommand({
 		weight: CORE_WEIGHT,
 		kbExpr: EditorContextKeys.textInputFocus,
 		primary: KeyMod.CtrlCmd | KeyCode.KEY_Z
+	},
+	menubarOpts: {
+		menuId: MenuId.MenubarEditMenu,
+		group: '1_do',
+		title: nls.localize({ key: 'miUndo', comment: ['&& denotes a mnemonic'] }, "&&Undo"),
+		order: 1
 	}
 }));
 registerCommand(new EditorHandlerCommand('default:' + H.Undo, H.Undo));
@@ -1760,6 +1751,12 @@ registerCommand(new EditorOrNativeTextInputCommand({
 		primary: KeyMod.CtrlCmd | KeyCode.KEY_Y,
 		secondary: [KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KEY_Z],
 		mac: { primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KEY_Z }
+	},
+	menubarOpts: {
+		menuId: MenuId.MenubarEditMenu,
+		group: '1_do',
+		title: nls.localize({ key: 'miRedo', comment: ['&& denotes a mnemonic'] }, "&&Redo"),
+		order: 2
 	}
 }));
 registerCommand(new EditorHandlerCommand('default:' + H.Redo, H.Redo));

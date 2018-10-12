@@ -3,8 +3,6 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-'use strict';
-
 import 'vs/editor/browser/controller/coreCommands';
 import 'vs/editor/browser/widget/codeEditorWidget';
 import 'vs/editor/browser/widget/diffEditorWidget';
@@ -22,9 +20,10 @@ import 'vs/editor/contrib/cursorUndo/cursorUndo';
 import 'vs/editor/contrib/dnd/dnd';
 import 'vs/editor/contrib/find/findController';
 import 'vs/editor/contrib/folding/folding';
+import 'vs/editor/contrib/fontZoom/fontZoom';
 import 'vs/editor/contrib/format/formatActions';
-import 'vs/editor/contrib/goToDeclaration/goToDeclarationCommands';
-import 'vs/editor/contrib/goToDeclaration/goToDeclarationMouse';
+import 'vs/editor/contrib/goToDefinition/goToDefinitionCommands';
+import 'vs/editor/contrib/goToDefinition/goToDefinitionMouse';
 import 'vs/editor/contrib/gotoError/gotoError';
 import 'vs/editor/contrib/hover/hover';
 import 'vs/editor/contrib/inPlaceReplace/inPlaceReplace';
@@ -41,3 +40,4 @@ import 'vs/editor/contrib/suggest/suggestController';
 import 'vs/editor/contrib/toggleTabFocusMode/toggleTabFocusMode';
 import 'vs/editor/contrib/wordHighlighter/wordHighlighter';
 import 'vs/editor/contrib/wordOperations/wordOperations';
+import 'vs/editor/contrib/wordPartOperations/wordPartOperations';

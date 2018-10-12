@@ -2,8 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
-
 import * as assert from 'assert';
 import { Selection } from 'vs/editor/common/core/selection';
 import { ILinePreflightData, IPreflightData, ISimpleModel, LineCommentCommand, Type } from 'vs/editor/contrib/comment/lineCommentCommand';
@@ -74,7 +72,7 @@ suite('Editor Contrib - Line Comment Command', () => {
 
 	function createBasicLinePreflightData(commentTokens: string[]): ILinePreflightData[] {
 		return commentTokens.map((commentString) => {
-			var r: ILinePreflightData = {
+			const r: ILinePreflightData = {
 				ignore: false,
 				commentStr: commentString,
 				commentStrOffset: 0,
@@ -84,8 +82,8 @@ suite('Editor Contrib - Line Comment Command', () => {
 		});
 	}
 
-	test('_analyzeLines', function () {
-		var r: IPreflightData;
+	test('_analyzeLines', () => {
+		let r: IPreflightData;
 
 		r = LineCommentCommand._analyzeLines(Type.Toggle, createSimpleModel([
 			'\t\t',
@@ -149,18 +147,18 @@ suite('Editor Contrib - Line Comment Command', () => {
 		assert.equal(r.lines[3].commentStrLength, 3);
 	});
 
-	test('_normalizeInsertionPoint', function () {
+	test('_normalizeInsertionPoint', () => {
 
-		var runTest = (mixedArr: any[], tabSize: number, expected: number[], testName: string) => {
-			var model = createSimpleModel(mixedArr.filter((item, idx) => idx % 2 === 0));
-			var offsets = mixedArr.filter((item, idx) => idx % 2 === 1).map(offset => {
+		const runTest = (mixedArr: any[], tabSize: number, expected: number[], testName: string) => {
+			const model = createSimpleModel(mixedArr.filter((item, idx) => idx % 2 === 0));
+			const offsets = mixedArr.filter((item, idx) => idx % 2 === 1).map(offset => {
 				return {
 					commentStrOffset: offset,
 					ignore: false
 				};
 			});
 			LineCommentCommand._normalizeInsertionPoint(model, offsets, 1, tabSize);
-			var actual = offsets.map(item => item.commentStrOffset);
+			const actual = offsets.map(item => item.commentStrOffset);
 			assert.deepEqual(actual, expected, testName);
 		};
 

@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { BareFontInfo } from 'vs/editor/common/config/fontInfo';
 
@@ -29,17 +28,13 @@ export class CharWidthRequest {
 	}
 }
 
-interface ICharWidthReader {
-	read(): void;
-}
-
-class DomCharWidthReader implements ICharWidthReader {
+class DomCharWidthReader {
 
 	private readonly _bareFontInfo: BareFontInfo;
 	private readonly _requests: CharWidthRequest[];
 
-	private _container: HTMLElement;
-	private _testElements: HTMLSpanElement[];
+	private _container: HTMLElement | null;
+	private _testElements: HTMLSpanElement[] | null;
 
 	constructor(bareFontInfo: BareFontInfo, requests: CharWidthRequest[]) {
 		this._bareFontInfo = bareFontInfo;
@@ -54,13 +49,13 @@ class DomCharWidthReader implements ICharWidthReader {
 		this._createDomElements();
 
 		// Add the container to the DOM
-		document.body.appendChild(this._container);
+		document.body.appendChild(this._container!);
 
 		// Read character widths
 		this._readFromDomElements();
 
 		// Remove the container from the DOM
-		document.body.removeChild(this._container);
+		document.body.removeChild(this._container!);
 
 		this._container = null;
 		this._testElements = null;
@@ -112,11 +107,11 @@ class DomCharWidthReader implements ICharWidthReader {
 				parent = italicDomNode;
 			}
 
-			parent.appendChild(document.createElement('br'));
+			parent!.appendChild(document.createElement('br'));
 
 			let testElement = document.createElement('span');
 			DomCharWidthReader._render(testElement, request);
-			parent.appendChild(testElement);
+			parent!.appendChild(testElement);
 
 			testElements[i] = testElement;
 		}
@@ -146,7 +141,7 @@ class DomCharWidthReader implements ICharWidthReader {
 	private _readFromDomElements(): void {
 		for (let i = 0, len = this._requests.length; i < len; i++) {
 			const request = this._requests[i];
-			const testElement = this._testElements[i];
+			const testElement = this._testElements![i];
 
 			request.fulfill(testElement.offsetWidth / 256);
 		}

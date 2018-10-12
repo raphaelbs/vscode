@@ -2,11 +2,9 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { IMarkdownString } from 'vs/base/common/htmlContent';
-import URI, { UriComponents } from 'vs/base/common/uri';
-import { TPromise } from 'vs/base/common/winjs.base';
+import { URI, UriComponents } from 'vs/base/common/uri';
 import { IDisposable } from 'vs/base/common/lifecycle';
 import { Position, IPosition } from 'vs/editor/common/core/position';
 import { Range, IRange } from 'vs/editor/common/core/range';
@@ -24,7 +22,7 @@ export interface IEditOperationBuilder {
 	 * @param range The range to replace (delete). May be empty to represent a simple insert.
 	 * @param text The text to replace with. May be null to represent a simple delete.
 	 */
-	addEditOperation(range: Range, text: string): void;
+	addEditOperation(range: Range, text: string | null): void;
 
 	/**
 	 * Add a new edit operation (a replace operation).
@@ -144,18 +142,22 @@ export interface ICharChange extends IChange {
  * A line change
  */
 export interface ILineChange extends IChange {
-	readonly charChanges: ICharChange[];
+	readonly charChanges: ICharChange[] | undefined;
 }
 
 /**
  * @internal
  */
-export interface IConfiguration {
+export interface IConfiguration extends IDisposable {
 	onDidChange(listener: (e: editorOptions.IConfigurationChangedEvent) => void): IDisposable;
 
 	readonly editor: editorOptions.InternalEditorOptions;
 
 	setMaxLineNumber(maxLineNumber: number): void;
+	updateOptions(newOptions: editorOptions.IEditorOptions): void;
+	getRawOptions(): editorOptions.IEditorOptions;
+	observeReferenceElement(dimension?: IDimension): void;
+	setIsDominatedByLongLines(isDominatedByLongLines: boolean): void;
 }
 
 // --- view
@@ -182,7 +184,7 @@ export interface IEditorAction {
 	readonly label: string;
 	readonly alias: string;
 	isSupported(): boolean;
-	run(): TPromise<void>;
+	run(): Promise<void>;
 }
 
 export type IEditorModel = ITextModel | IDiffEditorModel;
@@ -287,9 +289,9 @@ export interface IEditor {
 	focus(): void;
 
 	/**
-	 * Returns true if this editor has keyboard focus (e.g. cursor is blinking).
+	 * Returns true if the text inside this editor is focused (i.e. cursor is blinking).
 	 */
-	isFocused(): boolean;
+	hasTextFocus(): boolean;
 
 	/**
 	 * Returns all actions associated with this editor.
@@ -435,7 +437,7 @@ export interface IEditor {
 	/**
 	 * Gets the current model attached to this editor.
 	 */
-	getModel(): IEditorModel;
+	getModel(): IEditorModel | null;
 
 	/**
 	 * Sets the current model attached to this editor.
@@ -445,7 +447,7 @@ export interface IEditor {
 	 * will not be destroyed.
 	 * It is safe to call setModel(null) to simply detach the current model from the editor.
 	 */
-	setModel(model: IEditorModel): void;
+	setModel(model: IEditorModel | null): void;
 
 	/**
 	 * Change the decorations. All decorations added through this changeAccessor
@@ -455,6 +457,29 @@ export interface IEditor {
 	 * @internal
 	 */
 	changeDecorations(callback: (changeAccessor: IModelDecorationsChangeAccessor) => any): any;
+}
+
+/**
+ * A diff editor.
+ *
+ * @internal
+ */
+export interface IDiffEditor extends IEditor {
+
+	/**
+	 * Type the getModel() of IEditor.
+	 */
+	getModel(): IDiffEditorModel;
+
+	/**
+	 * Get the `original` editor.
+	 */
+	getOriginalEditor(): IEditor;
+
+	/**
+	 * Get the `modified` editor.
+	 */
+	getModifiedEditor(): IEditor;
 }
 
 /**

@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { localize } from 'vs/nls';
 
@@ -14,7 +13,7 @@ import * as Types from 'vs/base/common/types';
 import * as UUID from 'vs/base/common/uuid';
 import * as Platform from 'vs/base/common/platform';
 import Severity from 'vs/base/common/severity';
-import URI from 'vs/base/common/uri';
+import { URI } from 'vs/base/common/uri';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IJSONSchema } from 'vs/base/common/jsonSchema';
 import { ValidationStatus, ValidationState, IProblemReporter, Parser } from 'vs/base/common/parsers';
@@ -134,6 +133,7 @@ export interface ProblemMatcher {
 	pattern: ProblemPattern | ProblemPattern[];
 	severity?: Severity;
 	watching?: WatchingMatcher;
+	uriProvider?: (path: string) => URI;
 }
 
 export interface NamedProblemMatcher extends ProblemMatcher {
@@ -195,7 +195,11 @@ export function getResource(filename: string, matcher: ProblemMatcher): URI {
 	if (fullPath[0] !== '/') {
 		fullPath = '/' + fullPath;
 	}
-	return URI.parse('file://' + fullPath);
+	if (matcher.uriProvider !== void 0) {
+		return matcher.uriProvider(fullPath);
+	} else {
+		return URI.file(fullPath);
+	}
 }
 
 export interface ILineMatcher {
@@ -260,10 +264,12 @@ abstract class AbstractLineMatcher implements ILineMatcher {
 	private fillProperty(data: ProblemData, property: keyof ProblemData, pattern: ProblemPattern, matches: RegExpExecArray, trim: boolean = false): void {
 		if (Types.isUndefined(data[property]) && !Types.isUndefined(pattern[property]) && pattern[property] < matches.length) {
 			let value = matches[pattern[property]];
-			if (trim) {
-				value = Strings.trim(value);
+			if (value !== void 0) {
+				if (trim) {
+					value = Strings.trim(value);
+				}
+				data[property] = value;
 			}
-			data[property] = value;
 		}
 	}
 
@@ -343,7 +349,7 @@ abstract class AbstractLineMatcher implements ILineMatcher {
 	}
 
 	private getSeverity(data: ProblemData): MarkerSeverity {
-		let result: Severity = null;
+		let result: Severity | null = null;
 		if (data.severity) {
 			let value = data.severity;
 			if (value) {
@@ -887,7 +893,7 @@ export class ProblemPatternParser extends Parser {
 	}
 
 	private createRegularExpression(value: string): RegExp {
-		let result: RegExp = null;
+		let result: RegExp | null = null;
 		if (!value) {
 			return result;
 		}
@@ -1081,7 +1087,7 @@ class ProblemPatternRegistryImpl implements IProblemPatternRegistry {
 				}
 				resolve(undefined);
 			});
-		}, () => { });
+		});
 	}
 
 	public onReady(): TPromise<void> {
@@ -1191,7 +1197,7 @@ class ProblemPatternRegistryImpl implements IProblemPatternRegistry {
 				file: 1
 			},
 			{
-				regexp: /^\s+(\d+):(\d+)\s+(error|warning|info)\s+(.+?)\s\s+(.*)$/,
+				regexp: /^\s+(\d+):(\d+)\s+(error|warning|info)\s+(.+?)(?:\s\s+(.*))?$/,
 				line: 1,
 				character: 2,
 				severity: 3,
@@ -1250,7 +1256,7 @@ export class ProblemMatcherParser extends Parser {
 	}
 
 	private createProblemMatcher(description: Config.ProblemMatcher): ProblemMatcher {
-		let result: ProblemMatcher = null;
+		let result: ProblemMatcher | null = null;
 
 		let owner = description.owner ? description.owner : UUID.generateUuid();
 		let source = Types.isString(description.source) ? description.source : undefined;
@@ -1258,8 +1264,8 @@ export class ProblemMatcherParser extends Parser {
 		if (!applyTo) {
 			applyTo = ApplyToKind.allDocuments;
 		}
-		let fileLocation: FileLocationKind = undefined;
-		let filePrefix: string = undefined;
+		let fileLocation: FileLocationKind | undefined = undefined;
+		let filePrefix: string | undefined = undefined;
 
 		let kind: FileLocationKind;
 		if (Types.isUndefined(description.fileLocation)) {
@@ -1422,7 +1428,7 @@ export class ProblemMatcherParser extends Parser {
 	}
 
 	private createRegularExpression(value: string): RegExp {
-		let result: RegExp = null;
+		let result: RegExp | null = null;
 		if (!value) {
 			return result;
 		}
@@ -1635,7 +1641,7 @@ class ProblemMatcherRegistryImpl implements IProblemMatcherRegistry {
 				}
 				resolve(undefined);
 			});
-		}, () => { });
+		});
 	}
 
 	public onReady(): TPromise<void> {

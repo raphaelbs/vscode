@@ -2,7 +2,6 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-'use strict';
 
 import { Range } from 'vs/editor/common/core/range';
 import { Position } from 'vs/editor/common/core/position';
@@ -14,11 +13,11 @@ import { SearchData } from 'vs/editor/common/model/textModelSearch';
 
 export interface IValidatedEditOperation {
 	sortIndex: number;
-	identifier: ISingleEditOperationIdentifier;
+	identifier: ISingleEditOperationIdentifier | null;
 	range: Range;
 	rangeOffset: number;
 	rangeLength: number;
-	lines: string[];
+	lines: string[] | null;
 	forceMoveMarkers: boolean;
 	isAutoWhitespaceEdit: boolean;
 }
@@ -193,12 +192,12 @@ export class PieceTreeTextBuffer implements ITextBuffer {
 			}
 			operations[i] = {
 				sortIndex: i,
-				identifier: op.identifier,
+				identifier: op.identifier || null,
 				range: validatedRange,
 				rangeOffset: this.getOffsetAt(validatedRange.startLineNumber, validatedRange.startColumn),
 				rangeLength: this.getValueLengthInRange(validatedRange),
 				lines: op.text ? op.text.split(/\r\n|\r|\n/) : null,
-				forceMoveMarkers: op.forceMoveMarkers,
+				forceMoveMarkers: Boolean(op.forceMoveMarkers),
 				isAutoWhitespaceEdit: op.isAutoWhitespaceEdit || false
 			};
 		}
@@ -206,13 +205,17 @@ export class PieceTreeTextBuffer implements ITextBuffer {
 		// Sort operations ascending
 		operations.sort(PieceTreeTextBuffer._sortOpsAscending);
 
+		let hasTouchingRanges = false;
 		for (let i = 0, count = operations.length - 1; i < count; i++) {
 			let rangeEnd = operations[i].range.getEndPosition();
 			let nextRangeStart = operations[i + 1].range.getStartPosition();
 
-			if (nextRangeStart.isBefore(rangeEnd)) {
-				// overlapping ranges
-				throw new Error('Overlapping ranges are not allowed!');
+			if (nextRangeStart.isBeforeOrEqual(rangeEnd)) {
+				if (nextRangeStart.isBefore(rangeEnd)) {
+					// overlapping ranges
+					throw new Error('Overlapping ranges are not allowed!');
+				}
+				hasTouchingRanges = true;
 			}
 		}
 
@@ -256,14 +259,18 @@ export class PieceTreeTextBuffer implements ITextBuffer {
 				forceMoveMarkers: op.forceMoveMarkers
 			};
 		}
-		reverseOperations.sort((a, b) => a.sortIndex - b.sortIndex);
+
+		// Can only sort reverse operations when the order is not significant
+		if (!hasTouchingRanges) {
+			reverseOperations.sort((a, b) => a.sortIndex - b.sortIndex);
+		}
 
 		this._mightContainRTL = mightContainRTL;
 		this._mightContainNonBasicASCII = mightContainNonBasicASCII;
 
 		const contentChanges = this._doApplyEdits(operations);
 
-		let trimAutoWhitespaceLineNumbers: number[] = null;
+		let trimAutoWhitespaceLineNumbers: number[] | null = null;
 		if (recordTrimAutoWhitespace && newTrimAutoWhitespaceCandidates.length > 0) {
 			// sort line numbers auto whitespace removal candidates for next edit descending
 			newTrimAutoWhitespaceCandidates.sort((a, b) => b.lineNumber - a.lineNumber);
@@ -408,7 +415,7 @@ export class PieceTreeTextBuffer implements ITextBuffer {
 			if (editingLinesCnt < insertingLinesCnt) {
 				let newLinesContent: string[] = [];
 				for (let j = editingLinesCnt + 1; j <= insertingLinesCnt; j++) {
-					newLinesContent.push(op.lines[j]);
+					newLinesContent.push(op.lines![j]);
 				}
 
 				newLinesContent[newLinesContent.length - 1] = this.getLineContent(startLineNumber + insertingLinesCnt - 1);
@@ -443,9 +450,9 @@ export class PieceTreeTextBuffer implements ITextBuffer {
 	public static _getInverseEditRanges(operations: IValidatedEditOperation[]): Range[] {
 		let result: Range[] = [];
 
-		let prevOpEndLineNumber: number;
-		let prevOpEndColumn: number;
-		let prevOp: IValidatedEditOperation = null;
+		let prevOpEndLineNumber: number = 0;
+		let prevOpEndColumn: number = 0;
+		let prevOp: IValidatedEditOperation | null = null;
 		for (let i = 0, len = operations.length; i < len; i++) {
 			let op = operations[i];
 

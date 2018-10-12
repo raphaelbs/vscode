@@ -8,7 +8,8 @@ import { rgPath } from 'vscode-ripgrep';
 
 import { isMacintosh as isMac } from 'vs/base/common/platform';
 import * as glob from 'vs/base/common/glob';
-import { normalizeNFD, startsWith } from 'vs/base/common/strings';
+import { startsWith } from 'vs/base/common/strings';
+import { normalizeNFD } from 'vs/base/common/normalization';
 
 import { IFolderSearch, IRawSearch } from './search';
 import { foldersToIncludeGlobs, foldersToRgExcludeGlobs } from './ripgrepTextSearch';
@@ -73,10 +74,10 @@ function getRgArgs(config: IRawSearch, folderQuery: IFolderSearch, includePatter
 		args.push('--quiet');
 	}
 
-	// Folder to search
-	args.push('--');
-
-	args.push('.');
+	args.push('--no-config');
+	if (config.disregardGlobalIgnoreFiles) {
+		args.push('--no-ignore-global');
+	}
 
 	return { args, siblingClauses };
 }
